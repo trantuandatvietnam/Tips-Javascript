@@ -1,6 +1,2 @@
-let a = "Hello";
-let b = "Tran Tuan Dat";
-
-[a, b] = [b, a];
-console.log("a: ", a);
-console.log("b: ", b);
+import "./index2.js";
+console.log(123);
