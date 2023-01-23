@@ -1,1 +1,1 @@
-console.log("index2");
+console.log(typeof 287298723892342342344728374);

@@ -1,2 +1,6 @@
-import "./index2.js";
-console.log(123);
+const a = {
+  b: 1,
+  c: 2,
+};
+
+console.log(a.d);
