@@ -1,3 +1,5 @@
+# Phần 1: Javascript
+
 ### TIPS Javascript
 
 1. Che một phần của password hoặc số điện thoại
@@ -446,4 +448,294 @@ function isDate(value) {
 function isSymbol(value) {
   return typeof value === "symbol";
 }
+```
+
+# Phần 2: Typescript
+
+### Using type predicates
+
+```ts
+function isFish(pet: Fish | Bird): pet is Fish {
+  return (pet as Fish).swim !== undefined;
+}
+```
+
+- Trong ví dụ trên, `pet is Fish` chính là `type predicate`
+
+```ts
+// Both calls to 'swim' and 'fly' are now okay.
+let pet = getSmallPet();
+
+if (isFish(pet)) {
+  pet.swim();
+} else {
+  pet.fly();
+}
+```
+
+### Discriminated unions (Phân biệt unions)
+
+```ts
+// - Kiểu dữ liệu Shape có thể là hình tròn hoặc hình vuông, nếu là hình tròn thì có thuộc tính bán kính, và hình vuông có thêm thuộc tính chiều dài cạnh
+interface Shape {
+  kind: "circle" | "square";
+  radius?: number;
+  sideLength?: number;
+}
+
+function getArea(shape: Shape) {
+  return Math.PI * shape.radius ** 2; // Lỗi do shape chưa được xác định là loại hình nào (Object is possibly 'undefined'.)
+}
+
+// Để sửa code có thể làm như sau
+function getArea(shape: Shape) {
+  if (shape.kind === "circle") {
+    return Math.PI * shape.radius! ** 2;  // non-null assertion
+  }
+}
+
+// Tuy nhiên làm cách trên không hợp lý lắm do chúng ta đang buộc typescript hiểu rằng thuộc tính radius không bao giờ là null, vì thể nó có thể xảy ra lỗi sau này khi thay đổi code
+
+// ---------------------------------------------------
+// Cách tốt nhất có thể làm như sau: Tách riêng hai kiểu loại hình có các thuộc tính là bắt buộc chứ không phải option nữa
+interface Circle {
+  kind: "circle";
+  radius: number;
+}
+
+interface Square {
+  kind: "square";
+  sideLength: number;
+}
+
+type Shape = Circle | Square;
+
+function getArea(shape: Shape) {
+  switch (shape.kind) {
+    case "circle":
+      return Math.PI * shape.radius ** 2;
+    case "square":
+      return shape.sideLength ** 2;
+```
+
+### Exhaustiveness checking
+
+- Kiểu `never` có thể được gán cho bất kì loại nào tuy nhiên bất kì loại nào không thể gán cho kiểu `never` (Trừ khi nó là chính nó), Khi sử dụng if else hoặc bất kì câu lệnh điều kiện nào để check type thì sau lệnh đó, kiểu của union sẽ bị giảm trường hợp đi
+
+```ts
+type Shape = Circle | Square;
+
+function getArea(shape: Shape) {
+  switch (shape.kind) {
+    case "circle":
+      return Math.PI * shape.radius ** 2;
+    case "square":
+      return shape.sideLength ** 2;
+    default:
+      const _exhaustiveCheck: never = shape;
+      return _exhaustiveCheck;
+  }
+}
+```
+
+- Nếu thêm kiểu vào shape thì typescript sẽ báo lỗi
+
+```ts
+interface Triangle {
+  kind: "triangle";
+  sideLength: number;
+}
+
+type Shape = Circle | Square | Triangle;
+
+function getArea(shape: Shape) {
+  switch (shape.kind) {
+    case "circle":
+      return Math.PI * shape.radius ** 2;
+    case "square":
+      return shape.sideLength ** 2;
+    default: // Type 'Triangle' is not assignable to type 'never'.
+      const _exhaustiveCheck: never = shape;
+      return _exhaustiveCheck;
+  }
+}
+```
+
+### Specifying Type Arguments
+
+- Lưu ý luôn sử dụng ít type arg nhất có thể (Không sử dụng nhiều dạng như này: `<U, V, ...>`)
+
+```ts
+// Viết function để kết hợp hai mảng
+function combine<Type>(arr1: Type[], arr2: Type[]): Type[] {
+  return arr1.concat(arr2);
+}
+
+// Bình thường nó sẽ xuất hiện lỗi khi đầu vào không khớp với kiểu được chỉ định
+const arr = combine([1, 2, 3], ["hello"]); // Type 'string' is not assignable to type 'number'.
+
+// Nếu định làm như trên thì cần chỉ định kiểu theo cách thủ công như sau:
+const arr = combine<string | number>([1, 2, 3], ["hello"]);
+```
+
+NOTE: Khi viết một hàm cho một callback, không bao giờ được viết một tham số dạng tùy chọn trừ khi bạn có ý định gọi hàm mà không chuyền đối số
+
+### Function Overloads
+
+- Giống cách viết, quy tắc trong java
+
+### Typescript Mistakes Every Junior Developer should Avoid | clean-code
+
+- Sử dụng unknown thay vì sử dụng any. Thực chất, việc sử dụng any là tắt type checking => Giả sử trong một object không có thuộc tính age nhưng ta vẫn có thể sử dụng object.age (Không hợp lý tý nào, code typescript mà dùng như JS thế này)
+
+```ts
+interface IUser {
+  id: number;
+  firstName: string;
+  lastName: string;
+  gender: string;
+  image: string;
+  age: number;
+}
+
+interface IAdminUser extends IUser {
+  token: string;
+  addNewUser: () => void;
+}
+
+function isAdminUser(object: unknown): object is IAdminUser {
+  if (object !== null && typeof object === "object") {
+    return "token" in object;
+  }
+  return false;
+}
+
+async function fetchUser() {
+  const response = await fetch("/api/v1/user/1");
+  // BAD
+  const badUser = await response.json();
+  // GOOD
+  const goodUser: unknown = await response.json();
+  if (isAdminUser(goodUser)) {
+  }
+}
+```
+
+- NÊN sử dụng `satisfiles`
+  - Quan sát ví dụ sau:
+
+```ts
+interface ICustomImage {
+  data: string;
+  width: number;
+  height: number;
+}
+
+const myCustomImage = {
+  data: "base64",
+  width: 200,
+  height: 150,
+};
+
+type UserImage = string | ICustomImage;
+
+interface IUser {
+  id: number;
+  firstName: string;
+  lastName: string;
+}
+
+// BAD
+const badUser: IUser = {
+  id: 1,
+  firstName: "ALEX",
+  lastName: "BREAK",
+  image: "image-url",
+};
+// - Không nên sử dụng vì trong này có thuộc tính là image có `type` là `string | ICustomImage` nên khi chọc vào thuộc tính này nó không thực sự biết là biến này đang có kiểu như  thế nào nên sẽ không gợi ý chính xác các thuộc tính của nó.
+
+// GOOD
+const goodUser = {
+  id: 1,
+  firstName: "ALEX",
+  lastName: "BREAK",
+  image: "image-url",
+} satisfies IUser;
+
+// - Khi sử dụng như trên thì sau khi gán giá trị cho goodUser rồi nó mới tiến hành so sánh kiểu và tự động ép kiểu sao cho phù hợp nhất với unions
+```
+
+### Vấn đề sử dụng enum
+
+```ts
+// BAD
+enum BadState {
+  InProgress,
+  Success,
+  Fail,
+}
+
+BadState.InProgress; // (enum member) BadState.InProgress = 0
+BadState.Success; // (enum member) BadState.InProgress = 1
+BadState.Fail; // (enum member) BadState.InProgress = 2
+
+const badCheckState = (state: BadState) => {
+  // CODE
+};
+badCheckState(100);
+
+// => Lý do dẫn đến code trên bad là bởi enum tự động convert các giá trị sang dạng number nên tham số của nó cũng được ép sang kiểu là number
+
+// GOOD
+type GoodState = "InProgress" | "Success" | "Fail";
+
+enum GoodState2 {
+  InProgress = "InProgress",
+  Success = "Success",
+  Fail = "Fail",
+}
+
+const goodState = (state: GoodState) => {
+  // CODE
+};
+```
+
+- Sử dụng các tiện ích có sẵn trong typescript
+  - Partial
+  - Record
+
+```ts
+// PRODUCT
+interface IProduct {
+  id: number;
+  title: string;
+  description: string;
+  thumbnail: string;
+  price: number;
+  rating: number;
+}
+// Khi cập nhật thì không được cập nhật id và chỉ cập nhật một số trường thôi
+interface IUpdateProduct {
+  title?: string;
+  description?: string;
+  thumbnail?: string;
+  price?: number;
+  rating?: number;
+}
+// Điều sau đây cho kết quả tương tự với IUpdateProduct
+function updateProduct(
+  productId: IProduct["id"],
+  updateProduct: Partial<Omit<IProduct, "id">>
+) {
+  // Update
+}
+
+// RECORDS
+type Properties = "red" | "green" | "blue";
+type RGB = [red: number, green: number, blue: number];
+const color: Record<Propeties, RGB | string> = {
+  red: [255, 0, 0],
+  green: "green",
+  blue: "blue",
+};
 ```
