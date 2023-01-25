@@ -739,3 +739,302 @@ const color: Record<Propeties, RGB | string> = {
   blue: "blue",
 };
 ```
+
+### `in` keyword
+
+- Từ khóa `in` được sử dụng để xác định một thuộc tính có trong một object hay không
+
+### Generator functions
+
+- Sử dụng `Generator functions` giúp không chạy hết các đoạn code trong thân hàm khi gọi
+
+```ts
+function* generatorFunction() {
+  console.log("BEFORE 1");
+  yield 1;
+  console.log("AFTER 1");
+  console.log("BEFORE 2");
+  yield 2;
+  console.log("AFTER 2");
+  console.log("BEFORE 3");
+  yield 3;
+  console.log("AFTER 3");
+}
+
+const generator = generatorFunction();
+generator.next(); // Nó trả ra một object dạng {value: any, done: boolean} giá trị chính là giá trị viết sau yield, done là đã chạy hết đoạn code trong thân hàm hay chưa
+// BEFORE 1
+generator.next();
+// AFTER 1
+// BEFORE 2
+generator.next();
+```
+
+- Tạo một hàm có chức năng tự động generate ra `id` tăng dần
+
+```ts
+function* idGenerator() {
+  let id = 1;
+  while (true) {
+    yield id;
+    id++;
+  }
+}
+const generatorId = idGenerator();
+console.log(generatorId.next);
+console.log(generatorId.next);
+console.log(generatorId.next);
+```
+
+### Dynamic Module Javascript
+
+- Sử dụng chức năng này khi chỉ muốn sử dụng các đoạn code module khi thực sự cần thiết => Giúp giảm size module của bạn
+
+```ts
+document.addEventListener("click", async () => {
+  const { default: printModule } = await import("./module.js"); // Không cần quan tâm function được import kia có ý nghĩa gì, quan tâm vào cú pháp import()
+  printModule();
+});
+```
+
+### Tạo custom event trong js
+
+```js
+const myEvent = new Event("myCustomEvent");
+document.addEventListener("myCustomEvent", (e) => {
+  console.log(e);
+});
+document.dispatchEvent(myEvent);
+```
+
+- Các option khi tạo event
+
+```js
+{
+  isTrusted: false;
+  bubbles: false;
+  cancelBubble: false;
+  cancelable: false;
+  composed: false;
+  currentTarget: null;
+  defaultPrevented: false;
+  eventPhase: 0;
+  path: [document, window];
+  returnValue: true;
+  srcElement: document;
+  target: document;
+  timeStamp: 54.69999998807907;
+  type: "myCustomEvent";
+}
+```
+
+- `isTrusted` chỉ đề cập tới sự kiện có được kích hoạt bởi tương tác của người dùng hay bởi mã javascript hay không. Ví dụ khi người dùng click vào một button => Sự kiện xảy ra thì đặt thuộc tính isTrusted là true, đặt là false nếu sự kiện được kích hoạt bằng javascript
+- `target` chính là phần tử thực hiện `dispatchEvent`
+- `timeStamp` là khoảng thời gian kể từ khi sự kiện được xảy ra
+- `type` chỉ là tên của sự kiện
+
+```js
+const myEvent = new Event("myCustomEvent", {
+  bubbles: true,
+  cancelable: true,
+  composed: true,
+});
+```
+
+- Full ví dụ custom event trong js
+
+```ts
+const button = document.querySelector("button");
+
+button.addEventListener("custom:doubleClick", (e) => {
+  console.log("Double Click", e.detail.timeBetweenClicks);
+});
+
+const MAX_DOUBLE_CLICK_TIME = 500;
+let lastClick = 0;
+button.addEventListener("click", (e) => {
+  const timeBetweenClicks = e.timeStamp - lastClick;
+  if (timeBetweenClicks > MAX_DOUBLE_CLICK_TIME) {
+    lastClick = e.timeStamp;
+    return;
+  }
+
+  const doubleClickEvent = new CustomEvent("custom:doubleClick", {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    detail: {
+      timeBetweenClicks,
+    },
+  });
+  e.target.dispatchEvent(doubleClickEvent);
+  lastClick = 0;
+});
+```
+
+- Lưu ý về quy ước đặt tên: Sử dụng `custom:event_name` hoặc `custom` có thể thay bằng tên dự án của bạn
+
+### Tránh sử dụng `!`
+
+- Vấn đề khi sử dụng `!` là nó luôn convert toàn bộ giá trị thành boolean
+- Giả sử khi kiểm tra một người dùng có tồn tại hay không thì đoạn code dưới đây hoạt động như nhau, lý do là user có thể nhận các giá trị là null, undefined
+
+```js
+!null // true
+!undefined // true
+!{ name: "Kyle" } // false
+
+null == null // true
+undefined == null // true
+{ name: "Kyle" } == null // false
+```
+
+- Tuy nhiên toán tử này sẽ hẹo nếu sử dụng trong trường hợp check number như sau:
+
+```js
+!0; // true
+!1; // false
+
+0 == null; // false
+1 == null; // false
+```
+
+### Kĩ thuật debounce và throttle trong js
+
+- Kĩ thuật debounce là kĩ thuật giúp tránh việc thực hiện một công việc nào đó nhiều lần, công việc sẽ chỉ được thực hiện nếu hành động đó kết thúc sau một khoảng thời gian
+
+```js
+function debounce(cb, delay = 250) {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      cb(...args);
+    }, delay);
+  };
+}
+const updateOptions = debounce((query) => {
+  console.log(query);
+}, 1000);
+
+const input = document.querySelector("input");
+input.addEventListener("input", function (e) {
+  updateOptions(e.target.value);
+});
+```
+
+- Throttle
+  - Giống như debonce, throttle cũng được sử dụng để giới hạn số lần một function được gọi, tuy nhiên nó hoạt động khác debounce. throttle sẽ thực hiện gọi function sau khi một khoảng delay kết thúc miễn là quá trình kích hoạt chức năng vẫn đang diễn ra (Sau delays giây nó thực hiện gọi lại)
+  - Có hai cách code throttle tùy vào mục đích sử dụng.
+
+CÁCH 1:
+
+```js
+function throttle(cb, delay = 250) {
+  let shouldWait = false;
+
+  return (...args) => {
+    if (shouldWait) return;
+
+    cb(...args);
+    shouldWait = true;
+    setTimeout(() => {
+      shouldWait = false;
+    }, delay);
+  };
+}
+// Mô tả function throttle trên như sau: Giả sử người dùng nhập vào ô input cứ sau khoảng thời gian 300ms và delay = 1000ms
+// Type S - Call throttled function with S
+// Type a - Do nothing: 700ms left to wait
+// Type m - Do nothing: 400ms left to wait
+// Type a - Do nothing: 100ms left to wait
+// Delay is over - Nothing happens
+// Type n - Call throttled function with Saman
+// No more typing
+// Delay is over - Nothing happens
+```
+
+CÁCH 2
+
+```js
+function throttle(cb, delay = 1000) {
+  let shouldWait = false;
+  let waitingArgs;
+  const timeoutFunc = () => {
+    if (waitingArgs == null) {
+      shouldWait = false;
+    } else {
+      cb(...waitingArgs);
+      waitingArgs = null;
+      setTimeout(timeoutFunc, delay);
+    }
+  };
+
+  return (...args) => {
+    if (shouldWait) {
+      waitingArgs = args;
+      return;
+    }
+
+    cb(...args);
+    shouldWait = true;
+    setTimeout(timeoutFunc, delay);
+  };
+}
+// Mô tả function throttle trên như sau: Giả sử người dùng nhập vào ô input cứ sau khoảng thời gian 300ms và delay = 1000ms
+// Type S - Call throttled function with S
+// Type a - Save Sa to waiting args: 700ms left to wait
+// Type m - Save Sam to waiting args: 400ms left to wait
+// Type a - Save Sama to waiting args: 100ms left to wait
+// Delay is over - Call throttled function with Sama
+// Type n - Save Saman to waiting args: 700ms left to wait
+// No more typing
+// Delay is over - Call throttled function with Saman
+```
+
+FULL VÍ DỤ
+
+```js
+function throttle(cb, delay = 250) {
+  let shouldWait = false;
+
+  return (...args) => {
+    if (shouldWait) return;
+
+    cb(...args);
+    shouldWait = true;
+    setTimeout(() => {
+      shouldWait = false;
+    }, delay);
+  };
+}
+
+const input = document.querySelector("input");
+const updateOptions = throttle((query) => {
+  console.log("Excute");
+}, 500);
+
+input.addEventListener("input", (e) => {
+  updateOptions(e.target.value);
+});
+```
+
+=> Sự khác biệt duy nhất giữa hai cách trên là ở cách viết thứ nhất, function sẽ chỉ được gọi khi người dùng đang thực hiện trigger, còn ở cách thứ 2, function sẽ luôn luôn được gọi sau khoảng thời gian delay (Dù ở lần cuối cùng không thực hiện trigger thì sau khoảng thời gian delay nó vẫn được thực hiện lần cuối cùng)
+
+- Kĩ thuật throttle thường được sử dụng trong resize, drag and drop, scrolling, hoặc bất kì nghiệp vụ nào phù hợp
+
+### Null Vs Undefined
+
+- Một function return về undefined hoặc null thì có nghĩa nó không có giá trị trả về, cả `null` và `undefined` đều có ý nghĩa là không có giá trị, nhưng thông điệp mà nó muốn truyền tải lại khác.
+- `Null` có nghĩa là không có giá trị và một biến có giá trị này khi và chỉ khi lập trình viên set cho nó là `null`
+- `Undefined` được hiểu là không có giá trị nào vì chưa có giá trị nào được đặt
+  - Ví dụ tạo một biến và không gán giá trị thì nó sẽ là undefined
+
+```js
+let a;
+
+console.log(a);
+// undefined
+```
+
+=> Để truyền tải rằng một biến không còn bất kì thông tin hữu ích nào nữa thì đặt nó là `undefined`. Khi kết quả trả của một số hành động không có giá trị thì đặt là `null`
