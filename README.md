@@ -1038,3 +1038,303 @@ console.log(a);
 ```
 
 => Để truyền tải rằng một biến không còn bất kì thông tin hữu ích nào nữa thì đặt nó là `undefined`. Khi kết quả trả của một số hành động không có giá trị thì đặt là `null`
+
+### Relative Date Internationalization In JavaScript
+
+1. EX
+
+```js
+// Tạo instance của đối tượng
+const english = new Intl.RelativeTimeFormat("en-us");
+const spanish = new Intl.RelativeTimeFormat("es-es");
+const inferred = new Intl.RelativeTimeFormat(undefined);
+
+// Mỗi instance nhận 2 đối sô, đầu tiên là khoảng thời gian, thứ hai là loại khoảng thời gian
+english.format(-2, "days");
+// 2 days ago
+spanish.format(10, "hours");
+// dentro de 10 horas
+```
+
+2. Configuration Options
+
+- Chúng ta có hai cách chính để làm thay đổi đầu ra, đối số thứ 2 có giá trị mặc định là `{ style: 'long' }`
+- Cách 1: Truyền style trong đối số thứ 2
+
+```js
+const long = new Intl.RelativeTimeFormat("en-us", { style: "long" });
+const short = new Intl.RelativeTimeFormat("en-us", { style: "short" });
+const narrow = new Intl.RelativeTimeFormat("en-us", { style: "narrow" });
+
+long.format(10, "hours");
+// in 10 hours
+short.format(10, "hours");
+// in 10 hr.
+narrow.format(10, "hours");
+// in 10 hr.
+```
+
+- Cách thứ hai là truyền đối số thứ 2 chứa một thuộc tính là `numberic`, mặc định là `always`
+
+```js
+const always = new Intl.RelativeTimeFormat("en-us", { numeric: "always" });
+const auto = new Intl.RelativeTimeFormat("en-us", { numeric: "auto" });
+
+always.format(0, "hours");
+// in 0 hours
+auto.format(0, "hours");
+// this hour
+```
+
+3. Bắt đầu tạo một trình hiển thị ngày giờ thực sự
+
+```js
+const formatter = new Intl.RelativeTimeFormat(undefined, {
+  numeric: "auto", // Đặt cái này thành auto để nó in ra "yesterday" thay vì "1 day ago"
+});
+
+const DIVISIONS = [
+  { amount: 60, name: "seconds" },
+  { amount: 60, name: "minutes" },
+  { amount: 24, name: "hours" },
+  { amount: 7, name: "days" },
+  { amount: 4.34524, name: "weeks" },
+  { amount: 12, name: "months" },
+  { amount: Number.POSITIVE_INFINITY, name: "years" },
+];
+// Tiếp theo là tạo ra một function trả ra định dạng của ngày đó so với ngày hiện tại, đơn vị sẽ là khoảng lớn nhất được tính
+function formatTimeAgo(date) {
+  let duration = (date - new Date()) / 1000;
+
+  for (let i = 0; i <= DIVISIONS.length; i++) {
+    const division = DIVISIONS[i];
+    if (Math.abs(duration) < division.amount) {
+      return formatter.format(Math.round(duration), division.name);
+    }
+    duration /= division.amount;
+  }
+}
+```
+
+# Phần 3: ReactJs
+
+### useId hook (React 18)
+
+```js
+function EmailForm() {
+  return (
+    <>
+      <label htmlFor="email">Email</label>
+      <input id="email" type="email" />
+    </>
+  );
+}
+```
+
+- Theo dõi code trên, mặc dù nó hoạt động. Thế nhưng nếu bạn cố gắng hiển thị biểu mẫu này trên cùng một trang nhiều lần thì cũng sẽ có nhiều phần tử bị trùng id. Điều này là không tốt bởi mỗi thành phần cần có id riêng biệt, hơn nữa khi click vào tất cả các label nó sẽ chỉ focus vào ô input đầu tiên do tất cả các input đều có id giống nhau. Để fix hãy sử dụng hook sau:
+
+```js
+function EmailForm() {
+  const id = useId();
+  return (
+    <>
+      <label htmlFor={id}>Email</label>
+      <input id={id} type="email" />
+    </>
+  );
+}
+```
+
+=> Với việc sử dụng hook `useID` bạn sẽ sử dụng biểu mẫu này bao nhiêu lần tùy thích trên cùng một trang bởi vì nó sẽ tạo ra các id không trùng lặp. các ids được tạo bởi `useId` có dạng như sau: `:r1:, :r2: etc`
+
+- Một điều cần lưu ý là khi sử dụng `useId` nó sẽ tạo ra bộ chọn không hợp lệ khi sử dụng phương thức query selector. Điều này là có chủ đích vì React không muốn bạn select element bằng việc sử dụng `querySelector`. Thay vào đó bạn nên sử dụng useRef để thay thế.
+
+- Chỉ sử dụng hook này một lần trong một component. Điều này giúp nâng cao hiệu suất và giúp tận dụng được những lợi ích của hook này
+
+```js
+function LogInForm() {
+  const id = useId();
+  return (
+    <>
+      <div>
+        <label htmlFor={`${id}-email`}>Email</label>
+        <input id={`${id}-email`} type="email" />
+      </div>
+      <div>
+        <label htmlFor={`${id}-password`}>Password</label>
+        <input id={`${id}-password`} type="password" />
+      </div>
+    </>
+  );
+}
+```
+
+### Cấu trúc thư mục khi triển khai ứng dụng react
+
+- Tùy vào quy mô ứng dụng mà sử dụng cấu trúc phù hợp, không phải cứ cấu trúc phức tạp nhất lại là tốt nhất cho mọi dự án!
+
+1. Simple Folder Structure
+
+![Beginer](./imgs/beginner.png)
+
+- `hooks`: Chứa mọi hook tùy chỉnh cho dự án của bạn
+- `components`: Chứa mọi thành phần đơn lẻ, khi dự án của bạn chứa hơn 10-15 thành phần thì thư mục này rất khó xử lý, đó là lý do tại sao trong tất cả các cấu trúc thư mục khác, các thành phần thường được trải rộng trong nhiều thư mục và có nhiều cấu trúc hơn. Tuy nhiên với các thư mục nhỏ thì không cần thiết phải phức tạp như thế.
+- `__tests__`: Tất cả code được test
+
+* Ưu điểm: Dễ thực hiện đối với beginer
+* Nhược điểm: Không giúp gì nhiều cho dự án của bạn, Khi dự án có nhiều thành phần thì các folder sẽ chứa nhiều tệp dẫn tới khó quản lý.
+
+2. Intermediate Folder Structure (Cấu trúc thư mục trung gian)
+
+![Intermediate](./imgs/intermediate.png)
+
+- Sự thay đổi lớn nhất giữa cấu trúc đơn giản và cấu trúc này là chúng tôi hiện đang chia dự án của mình thành các trang gói gọn cho tất cả các logic cho các trang cụ thể vào một vị trí duy nhất. Điều này là thực sự hữu ích cho các dự án lớn hơn, bạn hoàn toàn có thể tìm kiếm các logic liên quan của page trong một thư mục duy nhất thay vì phải tìm kiếm trên nhiều thư mục và sàng lọc các tệp không liên quan để tìm kiếm thứ bạn muốn.
+
+- `pages`: Chứa toàn bộ các trang trong dự án của bạn, bên trong các thư mục cụ thể của trang đó phải là một tệp gốc của trang này (index.js), bên cạnh là những tệp chỉ áp dụng cho trang đó. Trong ví dụ trên chúng ta có trang `Login` chứa một file gốc là `index.js`, một component gọi là `LoginForm`, custom hook là `useLogin`. component và hook này chỉ được sử dụng trong trang Login nên nó được lưu trữ tại folder này chứ không phải ở compoent và hook ở global.
+
+- `components`: Trong cấu trúc này thì thư mục component sẽ được chia thành các thư mục con. Trong ví dụ trên chúng ta có thư mục `ui` chứa tất cả các thành phần giao diện người dùng như button, modals, cards, etc. Chúng ta cũng có một folder form cho các điều khiển cụ thể của biểu mẫu như checkbox, inputs, date pickers, etc. Bạn cũng có thể custom và chia nhỏ thư mục component sao cho phù hợp với dự án của bạn. Nhưng lý tưởng cho thư mục này là nó không nên quá lớn vì nhiều thành phần phức tạp hơn sẽ được lưu trữ trong `pages folder`
+
+- `hooks`: Nơi lưu trữ các hook global được sử dụng trong nhiều trang. Điều này là do các hook cụ thể của từng page đã được lưu trữ trong chính folder của page đó
+
+- `assets`: Nơi chứa tất cả các hình ảnh, css files, font files, etc. Khá nhiều thứ không liên quan đến code sẽ được lưu trữ trong thư mục này.
+
+- `context`: Lưu trữ toàn bộ tệp `context` được sử dụng trên nhiều trang. Nếu sử dụng một kho lưu trữ khác như redux thì có thể thay thế bằng thư mục `redux`
+
+- `data`: Folder này tương tự như thư mục `assets`, chứa các file json được sử dụng trong code (VD như store item, theme information), Thư mục này cũng có thể lưu trữ các biến hằng toàn cục (VD biến môi trường)
+
+- `utils`: Folder này sẽ chứa toàn bộ các function utils (VD như bộ định dạng, ...). (Nên chỉ lưu trữ các pure function)
+
+* Ưu điểm: Các tệp đều có thư mục riêng, điều này giúp các component, hooks global có ít code hơn
+* Nhược điểm: Khi ứng dụng phát triển lớn hơn thì nhiều trang sẽ sử dụng cùng một tính năng. Khi điều này xảy ra bạn sẽ phải di chuyển code của bạn ra khỏi `pages folder` và chuyển đến các folder khác trong ứng dụng, điều này làm các thư mục khác bị phình to ra.
+
+3. Advanced Folder Structure
+
+![Advanced](./imgs/advanced.png)
+
+- `features`: Thư mục này hoạt động giống thư mục `pages` trong `Intermediate Folder Structure`. Nhưng thay vì nhóm theo trang thì ở đây nó nhóm theo tính năng.
+
+- `pages`: Bây giờ trong folder này chỉ chứa một tệp trên mỗi trang vì tất các logic cho tính năng trên các trang đều nằm trong thư mục `features`. Điều này có nghĩa là các tệp trong thư mục `pages` thực sự khá đơn giản vì chúng chỉ gắn kết một vài tính năng, component chung lại với nhau
+
+- `layouts`: Đây là nơi chứa tất cả các cách hiển thị(Gọi chung là layout) trong ứng dụng của bạn, nếu ứng dụng của bạn chỉ có một layout thì folder này không cần thiết, và bạn có thể đặt các thành phần layout của bạn trong thư mục `components`
+
+- `lib`: Chứa những `facades` cho các thư viện khác nhau mà bạn sử dụng. Ví dụ bạn sử dụng thư viện `axios` thì bạn sẽ tạo một tệp riêng cho thư viện axios đó. Điều này có nghĩa là khi muốn sử dụng axios thì thay vì import trực tiếp axios từ thư viện thì bạn sẽ import từ file này.
+
+- `services`: Thư mục này chứa tất cả các mã của bạn để giao tiếp với bất kì API bên ngoài nào,
+
+### Ví dụ về folder structure
+
+```js
+└── src/
+    ├── features/
+    │   │   # the todo "feature" contains everything related to todos
+    │   ├── todos/
+    │   │   │   # this is used to export the relevant modules aka the public API (more on that in a bit)
+    │   │   ├── index.js
+    │   │   ├── create-todo-form/
+    │   │   ├── edit-todo-modal/
+    │   │   ├── todo-form/
+    │   │   └── todo-list/
+    │   │       │   # the public API of the component (exports the todo-list component and hook)
+    │   │       ├── index.js
+    │   │       ├── todo-item.component.js
+    │   │       ├── todo-list.component.js
+    │   │       ├── todo-list.context.js
+    │   │       ├── todo-list.test.js
+    │   │       └── use-todo-list.js
+    │   ├── projects/
+    │   │   ├── index.js
+    │   │   ├── create-project-form/
+    │   │   └── project-list/
+    │   ├── ui/
+    │   │   ├── index.js
+    │   │   ├── button/
+    │   │   ├── card/
+    │   │   ├── checkbox/
+    │   │   ├── header/
+    │   │   ├── footer/
+    │   │   ├── modal/
+    │   │   └── text-field/
+    │   └── users/
+    │       ├── index.js
+    │       ├── login/
+    │       ├── signup/
+    │       └── use-auth.js
+    └── pages/
+        │   # all that's left in the pages folder are simple JS files
+        │   # each file represents a page (like Next.js)
+        ├── create-project.js
+        ├── create-todo.js
+        ├── index.js
+        ├── login.js
+        ├── privacy.js
+        ├── project.js
+        ├── signup.js
+        └── terms.js
+
+// Thu gọn
+
+└── src/
+    ├── features/
+    │   ├── todos/
+    │   ├── projects/
+    │   ├── ui/
+    │   └── users/
+    └── pages/
+        ├── create-project.js
+        ├── create-todo.js
+        ├── index.js
+        ├── login.js
+        ├── privacy.js
+        ├── project.js
+        ├── signup.js
+        └── terms.js
+```
+
+### Một số những tips
+
+- Trong mỗi thư mục cần có một file index. File này làm nhiệm vụ duy nhất là export toàn bộ file trong cấu trúc để những nơi khác dễ import
+
+Ví dụ:
+
+```js
+└── src/
+    ├── features/
+    │   ├── todos/
+    │   │   │   # this is used to export the relevant modules aka the public API
+    │   │   ├── index.js
+    │   │   ├── create-todo-form/
+    │   │   ├── edit-todo-modal/
+    │   │   ├── todo-form/
+    │   │   └── todo-list/
+    │   │       │   # the public API of the component (exports the todo-list component and hook)
+    │   │       ├── index.js
+    │   │       ├── todo-item.component.js
+    │   │       ├── todo-list.component.js
+    │   │       ├── todo-list.context.js
+    │   │       ├── todo-list.test.js
+    │   │       └── use-todo-list.js
+    │   ├── projects/
+    │   ├── ui/
+    │   └── users/
+    └── pages/
+
+// Trong features/todo/todo-list
+export { TodoList } from "./todo-list.component";
+export { useTodoList } from "./use-todo-list";
+
+// Trong feature/todo/index.js
+export * from "./create-todo-form";
+export * from "./todo-list";
+
+// Thay vì import như này
+import { TodoList } from "@features/todo/todo-list/todo-list.component";
+// Chúng ta chỉ cần làm như này
+import { TodoList } from "@features/todo";
+```
+
+- Một số quy tắc đặt tên:
+  - kebab-case
+  - PascalCase
+  - camelCase
+
+=> Trong các quy tắc đặt tên trên, nên sử dụng quy tắc kebab-case, bởi nếu sử dụng 2 quy tắc đặt tên bên dưới khi sử dụng Macbook sẽ gặp vấn đề bởi Unix không phân biệt chữ hoa chữ thường => MyComponent.js với myComponent.js là giống nhau. Vì thế git sẽ không nhận thay đổi về tên tệp (Nếu ta đổi tên tệp).
