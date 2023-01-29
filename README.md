@@ -1338,3 +1338,350 @@ import { TodoList } from "@features/todo";
   - camelCase
 
 => Trong các quy tắc đặt tên trên, nên sử dụng quy tắc kebab-case, bởi nếu sử dụng 2 quy tắc đặt tên bên dưới khi sử dụng Macbook sẽ gặp vấn đề bởi Unix không phân biệt chữ hoa chữ thường => MyComponent.js với myComponent.js là giống nhau. Vì thế git sẽ không nhận thay đổi về tên tệp (Nếu ta đổi tên tệp).
+
+### Vấn đề mà các junior gặp phải khi sử dụng useState hook
+
+1. Duplicate State
+
+- Dưới đây là một ví dụ hiển thị một danh sách các items, người dùng có thể mở một item bằng cách click vào nút open tương ứng để mở một modal
+
+![State 1](./imgs/state1.webp)
+
+```js
+// Đây là code có vấn đề
+import { useState } from "react";
+
+// const items = [
+//   {
+//     id: "item-1",
+//     text: "Item 1",
+//   },
+//   ...
+// ]
+
+function DuplicateState({ items }) {
+  const [selectedItem, setSelectedItem] = useState();
+
+  const onClickItem = (item) => {
+    setSelectedItem(item);
+  };
+
+  return (
+    <>
+      {selectedItem && <Modal item={selectedItem} />}
+      <ul>
+        {items.map((row) => (
+          <li key={row.id}>
+            {row.text}
+            <button onClick={() => onClickItem(row)}>Open</button>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+=> Ta thấy vấn đề ở đây là toàn bộ item sẽ được lưu vào state (selectedItem), Thử suy nghĩ rằng: Khi người dùng open modal, sau đó bên trong modal này lại có một form dùng để cập nhật thông tin của item đó, nếu người dùng cập nhật và bấm submit thì thông tin mới của item này sẽ được lưu trữ trên cơ sở dữ liệu, sau đó ở phía frontend sẽ gọi lại một api và render lại thông tin của item đó trên màn hình(List được re-render), Tuy nhiên lúc này thông tin hiển thị trên màn hình về item đang chọn vẫn hiển thị thông tin cũ do ta đang lưu toàn bộ thông tin của item này trước đó vào state. Bug này có thể gây khó chịu trong một số tình huống phức tạp hơn. Vậy giải pháp ở đây là gì?
+
+- Để giải quyết vấn đề này, chúng ta có thể biến `selectedItem` thành sync (Đồng bộ) và chỉ lưu trữ id của nó khi người dùng click open thôi. Cách làm khá đơn giản như sau:
+
+```js
+// const items = [
+//   {
+//     id: "item-1",
+//     text: "Item 1",
+//   },
+//   ...
+// ]
+
+function DuplicateState({ items }) {
+  const [selectedItemId, setSelectedItemId] = useState();
+  const selectedItem = items.find(({ id }) => id === selectedItemId);
+
+  const onClickItem = (itemId) => {
+    setSelectedItemId(itemId);
+  };
+
+  return (
+    <>
+      {selectedItem && <Modal item={selectedItem} />}
+      <ul>
+        {items.map((row) => (
+          <li key={row.id}>
+            {row.text}
+            <button onClick={() => onClickItem(row.id)}>Open</button>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+2. Updating State Via useEffect (Cập nhật trạng thái thông qua useEffect)
+
+- Ta sẽ sử dụng cùng với ví dụ ở phần trước, tuy nhiên code có thay đổi một chút như sau:
+
+```js
+import { useEffect, useState } from "react";
+
+// const items = [
+//   {
+//     id: "item-1",
+//     text: "Item 1",
+//   },
+//   ...
+// ]
+
+function DuplicateState({ items }) {
+  const [selectedItem, setSelectedItem] = useState();
+
+  useEffect(() => {
+    if (selectedItem) {
+      setSelectedItem(items.find(({ id }) => id === selectedItem.id));
+    }
+  }, [items]);
+
+  const onClickItem = (item) => {
+    setSelectedItem(item);
+  };
+
+  return (
+    <>
+      {selectedItem && <Modal item={selectedItem} />}
+      <ul>
+        {items.map((row) => (
+          <li key={row.id}>
+            {row.text}
+            <button onClick={() => onClickItem(row)}>Open</button>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+```
+
+=> Có thể thấy code trên đã không cập nhật biến selectedItem bằng mã sync nữa, thay vào đó nó đang sử dụng useEffect để cập nhật biến selectedItem. Mã này trông có vẻ hoạt động tốt. Vậy vấn đề ở đây là gì?
+
+- Thứ nhất việc sử dụng useEffect làm cho code khó đọc hơn, nên tránh sử dụng useEffect càng ít càng tốt!
+- Thứ hai, việc cập nhật state trong một useEffect gây ra việc render bổ sung, nó không phải là một vấn đề lớn, tuy nhiên vẫn cần được xem xét.
+- Thứ ba, useEffect không chạy vào đúng thời điểm, nó luôn được chạy trong lần hiển thị đầu tiên! Để giải quyết vấn đề này ta làm như sau:
+
+```js
+function DuplicateState({ items }) {
+  const [selectedItem, setSelectedItem] = useState();
+  const firstRender = useRef(true);
+
+  useEffect(() => {
+    // Tránh lần đầu tiên code chạy vào đây
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    setSelectedItem(items.find(({ id }) => id === selectedItem.id));
+  }, [items]);
+```
+
+- Cách này không hay lắm, giải pháp tốt nhất là sử dụng sync như đã trình bày ở phần trước.
+
+3. Contradicting State (Mâu thuẫn state)
+
+- Vấn đề xảy ra khi làm việc với nhiều state liên quan đến nhau, bạn có thể dễ dàng tạo ra một state không được phép
+
+```js
+export function ContradictingState() {
+  const [data, setData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setIsLoading(true);
+    setError(null);
+
+    fetchData()
+      .then((data) => {
+        setData(data);
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        setIsLoading(false);
+        setData(null);
+        setError(error);
+      });
+  }, []);
+```
+
+- Trong ví dụ trên chúng ta có thể dễ dàng rơi vào trạng thái mâu thuẫn state khi không cẩn thận, nếu trong trường hợp fetch data bị lỗi (catch) mà bạn quên setError thành false thì loading sẽ quay liên tục (Đây là state không được phép trong component của chúng ta)
+
+=> Giải pháp: Khi trong một component có nhiều biến state phụ thuộc vào nhau thay vì sử dụng `state` thì lúc này nên nghĩ tới việc sử dụng `useReducer`
+
+```js
+const initialState = {
+  data: [],
+  error: null,
+  isLoading: false
+};
+
+function reducer(state, action) {
+  switch (action.type) {
+    case "FETCH":
+      return {
+        ...state,
+        error: null,
+        isLoading: true
+      };
+    case "SUCCESS":
+      return {
+        ...state,
+        error: null,
+        isLoading: false,
+        data: action.data
+      };
+    case "ERROR":
+      return {
+        ...state,
+        isLoading: false,
+        error: action.error
+      };
+    default:
+      throw new Error(`action "${action.type}" not implemented`);
+  }
+}
+
+export function NonContradictingState() {
+  const [state, dispatch] = useReducer(reducer, initialState);
+
+  useEffect(() => {
+    dispatch({ type: "FETCH" });
+    fetchData()
+      .then((data) => {
+        dispatch({ type: "SUCCESS", data });
+      })
+      .catch((error) => {
+        dispatch({ type: "ERROR", error });
+      });
+  }, []);
+
+```
+
+=> Nhìn ví dụ trên chúng ta có thể thấy ngay lập tức 3 hành động và 4 trạng thái thành phần có thể (“FETCH”, “SUCCESS”, “ERROR”, và init state)
+
+4. Deeply Nested State (State lồng nhau sâu)
+
+- Khi chúng ta có một state chứa một deeply nested object thì việc cập nhật chúng sau một hành động nào đó quả là đáng sợ bởi trông chúng sẽ như thế này:
+
+```js
+function NestedComments() {
+  const [comments, setComments] = useState([
+    {
+      id: "1",
+      text: "Comment 1",
+      children: [
+        {
+          id: "11",
+          text: "Comment 1 1"
+        },
+        {
+          id: "12",
+          text: "Comment 1 2"
+        }
+      ]
+    },
+    {
+      id: "2",
+      text: "Comment 2"
+    },
+    {
+      id: "3",
+      text: "Comment 3",
+      children: [
+        {
+          id: "31",
+          text: "Comment 3 1",
+          children: [
+            {
+              id: "311",
+              text: "Comment 3 1 1"
+            }
+          ]
+        }
+      ]
+    }
+  ]);
+
+  const updateComment = (id, text) => {
+    setComments([
+      ...comments.slice(0, 2),
+      {
+        ...comments[2],
+        children: [
+          {
+            ...comments[2].children[0],
+            children: [
+              {
+                ...comments[2].children[0].children[0],
+                text: "New comment 311"
+              }
+            ]
+          }
+        ]
+      }
+    ]);
+  };
+```
+
+=> Giải pháp: Thay vì làm việc với các state lồng sâu nhau, nên sử dụng các cấu trúc `flat` sẽ dễ dàng hơn nhiều!
+
+```js
+function FlatCommentsRoot() {
+  const [comments, setComments] = useState([
+    {
+      id: "1",
+      text: "Comment 1",
+      children: ["11", "12"],
+    },
+    {
+      id: "11",
+      text: "Comment 1 1"
+    },
+    {
+      id: "12",
+      text: "Comment 1 2"
+    },
+    {
+      id: "2",
+      text: "Comment 2",
+    },
+    {
+      id: "3",
+      text: "Comment 3",
+      children: ["31"],
+    },
+    {
+      id: "31",
+      text: "Comment 3 1",
+      children: ["311"]
+    },
+    {
+      id: "311",
+      text: "Comment 3 1 1"
+    }
+  ]);
+
+  const updateComment = (id, text) => {
+    const updatedComments = comments.map((comment) => {
+      if (comment.id !== id) {
+        return comment;
+      }
+      return {
+        ...comment,
+        text
+      };
+    });
+    setComments(updatedComments);
+  };
+```
+
+###
