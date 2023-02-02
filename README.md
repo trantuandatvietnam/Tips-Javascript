@@ -642,7 +642,8 @@ type UserImage = string | ICustomImage;
 interface IUser {
   id: number;
   firstName: string;
-  lastName: string;
+  lastName: string;;
+  image: string | ICustomImage
 }
 
 // BAD
@@ -1114,6 +1115,137 @@ function formatTimeAgo(date) {
     duration /= division.amount;
   }
 }
+```
+
+### Extends interface from a html element
+
+```js
+import React from "react";
+
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  title: string;
+  showIcon: boolean;
+}
+
+const Button: React.FC<ButtonProps> = ({ title, showIcon, ...props }) => {
+  return (
+    <button {...props}>
+      {title}
+      {showIcon && <Icon />}
+    </button>
+  );
+};
+
+<Button
+  title="Click me"
+  onClick={() => {}} {/* You have access to the <button/> props */}
+/>
+```
+
+### Index Signatures
+
+- Giả sử có hai Object như sau:
+
+```js
+const salary1 = {
+  baseSalary: 100_000,
+  yearlyBonus: 20_000
+};
+
+const salary2 = {
+  contractSalary: 110_000
+};
+
+function totalSalary(salaryObject: ???) {
+  let total = 0;
+  for (const name in salaryObject) {
+    total += salaryObject[name];
+  }
+  return total;
+}
+totalSalary(salary1); // => 120_000
+totalSalary(salary2); // => 110_000
+
+// Ta thấy rằng trong từng object đều có cấu trúc giống nhau, tuy nhiên để sử dụng type trong typescript thì ta cần biết trước key của nó thuộc loại gì, đây là lúc sử dụng signalture trong ts
+
+function totalSalary(salaryObject: { [key: string]: number }) {
+  let total = 0;
+  for (const name in salaryObject) {
+    total += salaryObject[name];
+  }
+  return total;
+}
+
+totalSalary(salary1); // => 120_000
+totalSalary(salary2); // => 110_000
+
+// { [key: string]: number } chính là index signature
+```
+
+- VÍ DỤ 2
+
+```js
+interface Options {
+  [key: string]: string | number | boolean;
+  timeout: number;
+}
+
+const options: Options = {
+  timeout: 1000,
+  timeoutMessage: "The request timed out!",
+  isFileUpload: false,
+};
+```
+
+- `Index signature vs Record<Keys, Type>`
+
+```js
+const object1: Record<string, string> = { prop: "Value" }; // OK
+const object2: { [key: string]: string } = { prop: "Value" }; // OK
+```
+
+```js
+type SpecificSalary = Record<"yearlySalary" | "yearlyBonus", number>;
+
+const salary1: SpecificSalary = {
+  yearlySalary: 120_000,
+  yearlyBonus: 10_000,
+}; // OK
+```
+
+### Tuple Types
+
+- Đây là một loại khác của Array, nó cho ta biết có bao nhiêu phần tử trong một mảng và define ra từng kiểu của phần tử đó theo vị trí
+
+```js
+function doSomething(pair: [string, number]) {
+  const a = pair[0];
+
+const a: string
+  const b = pair[1];
+
+const b: number
+  // ...
+}
+
+doSomething(["hello", 42]);
+```
+
+```js
+type Either2dOr3d = [number, number, number?];
+
+function setCoordinate(coord: Either2dOr3d) {
+  const [x, y, z] = coord;  // z: number | undefined
+  console.log(`Provided coordinates had ${coord.length} dimensions`); // (property) length: 2 | 3
+}
+```
+
+- Sử dụng rest
+
+```js
+type StringNumberBooleans = [string, number, ...boolean[]];
+type StringBooleansNumber = [string, ...boolean[], number];
+type BooleansStringNumber = [...boolean[], string, number];
 ```
 
 # Phần 3: ReactJs
